@@ -60,8 +60,18 @@ while True:
                 client_server.send(b"250 HELLO\r\n")
 
             elif data.startswith("MAIL FROM"):
-                sender = data
-                client_server.send(b"250 OK\r\n")
+                try:
+                    # Extract everything after the colon and clean it up
+                    # This prevents the "FROM: MAIL FROM:alice@sender.com" bug in the inbox
+                    if ":" in data:
+                        sender = data.split(":", 1)[1].strip()
+                    else:
+                        sender = data.replace("MAIL FROM", "").strip()
+
+                    client_server.send(b"250 OK\r\n")
+                except Exception as e:
+                    print(f"Error parsing MAIL FROM: {e}")
+                    client_server.send(b"501 Syntax error\r\n")
 
             elif data.startswith("RCPT TO"):
                 raw_recipient = data.split(":", 1)[1].strip()

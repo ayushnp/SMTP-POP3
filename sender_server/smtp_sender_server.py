@@ -38,6 +38,7 @@ def forward_mail(sender, receiver, message_lines):
 
     # Cleanly Close Connection
     send("QUIT")
+    s.recv(1024)
     s.close()
 
 
