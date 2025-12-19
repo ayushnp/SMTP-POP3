@@ -64,7 +64,11 @@ while True:
                 client_server.send(b"250 OK\r\n")
 
             elif data.startswith("RCPT TO"):
-                receiver = data.split(":")[1].split("@")[0]
+                raw_recipient = data.split(":", 1)[1].strip()
+                if "@" in raw_recipient:
+                    receiver = raw_recipient.split("@")[0]
+                else:
+                    receiver = raw_recipient
                 client_server.send(b"250 OK\r\n")
 
             elif data == "DATA":

@@ -9,36 +9,40 @@ RECEIVER_PORT = 3535
 
 def forward_mail(sender, receiver, message_lines):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(5)  # 🔥 IMPORTANT: prevent infinite hang
+    s.settimeout(5)  # Prevents infinite hang if receiver doesn't respond
     s.connect((RECEIVER_HOST, RECEIVER_PORT))
 
     def recv():
         resp = s.recv(1024).decode()
-        print("Receiver SMTP:", resp)
+        print("Receiver SMTP Response:", resp.strip())
         return resp
 
     def send(cmd):
         s.send((cmd + "\r\n").encode())
-        recv()
+        return recv()
 
+    # Protocol Handshake
     recv()  # 220 greeting
     send("HELO sender-server")
     send(f"MAIL FROM:{sender}")
     send(f"RCPT TO:{receiver}")
     send("DATA")
 
+    # Send Message Body
     for line in message_lines:
         s.send((line + "\r\n").encode())
 
+    # End Data Mode
     s.send(b".\r\n")
-    recv()
+    recv() # Expect 250 Message stored
 
+    # Cleanly Close Connection
     send("QUIT")
     s.close()
 
 
-
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server_socket.bind((HOST, PORT))
 server_socket.listen(5)
 
@@ -63,7 +67,6 @@ while True:
 
             print("C:", data)
 
-
             if data_mode:
                 if data == ".":
                     try:
@@ -80,16 +83,17 @@ while True:
                 else:
                     message_lines.append(data)
 
-            # 🔽 NORMAL SMTP COMMANDS
             elif data.startswith("HELO"):
                 sender_conn.send(b"250 Hello\r\n")
 
             elif data.startswith("MAIL FROM"):
-                sender = data.split(":", 1)[1]
+                # Clean the sender string to remove 'MAIL FROM:' prefix
+                sender = data.split(":", 1)[1] if ":" in data else data
                 sender_conn.send(b"250 OK\r\n")
 
             elif data.startswith("RCPT TO"):
-                receiver = data.split(":", 1)[1]
+                # Clean the receiver string
+                receiver = data.split(":", 1)[1] if ":" in data else data
                 sender_conn.send(b"250 OK\r\n")
 
             elif data == "DATA":
